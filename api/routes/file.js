@@ -55,14 +55,13 @@ router.post(
           ContentType: contentType,
           Metadata: { "Cache-Control": "max-age=31536000" },
         };
-        try {
+
+        return new Promise((resolve, reject) => {
           s3bucket.upload(params, function (err, data) {
             if (err) return reject(`error in callback:${err}`);
             resolve(path);
           });
-        } catch (err) {
-          return reject(`error in callback:${err}`);
-        }
+        });
       })
       .filter((promise) => promise !== null); // Filter out the nulls
 
