@@ -15,7 +15,7 @@ import Auth from "@/pages/auth";
 import Home from "@/pages/home";
 import Experiments from "@/pages/experiments";
 
-// import Header from "@/components/Header";
+import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
 const ProtectedRoute = () => {
@@ -79,8 +79,9 @@ export default function App() {
 const Layout = () => {
   return (
     <main className="">
+      <Header />
       <Sidebar />
-      <section className="ml-48 bg-gray-50 min-h-screen">
+      <section className="xl:ml-48 bg-gray-50 min-h-screen">
         <Outlet />
       </section>
     </main>
