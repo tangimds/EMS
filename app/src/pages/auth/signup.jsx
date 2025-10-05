@@ -23,9 +23,7 @@ export default () => {
       if (user) setUser(user);
       navigate("/");
     } catch (e) {
-      console.log("e", e);
-      if (e.code === "PASSWORD_NOT_VALIDATED") return toast.error(e.message);
-      toast.error(e.code);
+      toast.error(e.message);
     } finally {
       setBtnLoading(false);
     }

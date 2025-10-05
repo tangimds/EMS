@@ -27,7 +27,7 @@ export default () => {
       navigate("/");
     } catch (e) {
       console.log("e", e);
-      toast.error(e.code);
+      toast.error(e.message);
     } finally {
       setBtnLoading(false);
     }
