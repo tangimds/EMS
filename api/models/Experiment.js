@@ -13,7 +13,6 @@ const experimentSchema = new mongoose.Schema(
     },
     research_focus: {
       type: String,
-      required: true,
     },
     status: {
       type: String,
