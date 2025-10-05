@@ -25,8 +25,6 @@ app.get("/health", (req, res) => {
   res.json({ message: "Server is running!" });
 });
 
-console.log("🔍 ~ 1:");
-
 app.use(passport.initialize());
 require("./services/passport")(app);
 
