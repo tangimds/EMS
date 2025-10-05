@@ -31,6 +31,7 @@ require("./services/passport")(app);
 // Routes
 app.use("/auth", require("./routes/auth"));
 app.use("/experiments", require("./routes/experiments"));
+app.use("/file", require("./routes/file"));
 
 // Connect to MongoDB
 mongoose

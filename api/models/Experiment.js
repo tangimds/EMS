@@ -39,6 +39,9 @@ const experimentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    attachments: {
+      type: Array,
+    },
   },
   {
     timestamps: {

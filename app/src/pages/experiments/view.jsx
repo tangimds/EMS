@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MdWarning, MdError, MdRefresh, MdArrowBack } from "react-icons/md";
-import API from "../../services/api";
+import { FaFile, FaTrash } from "react-icons/fa";
+import toast from "react-hot-toast";
+
+import api from "../../services/api";
+import { readFileAsync } from "../../utils";
+import { API_URL } from "../../config";
 
 const View = () => {
   const { id } = useParams();
@@ -9,6 +14,113 @@ const View = () => {
   const [experiment, setExperiment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [uploading, setUploading] = useState(false);
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check if file is a PDF
+    if (file.type !== "application/pdf") {
+      toast.error("Only PDF files are allowed");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Convert file to base64 for the API
+      const fileData = await readFileAsync(file);
+
+      // Upload file to S3
+      const { data: url } = await api.post("/file", {
+        files: [{ rawBody: fileData, name: file.name }],
+        folder: `/experiments/${id}/attachments`,
+      });
+
+      // Create simple document object
+      const newDocument = {
+        name: file.name,
+        url: url[0],
+        created_at: new Date().toISOString(),
+      };
+
+      // Update experiment with new attachment
+      const updatedAttachments = [
+        ...(experiment.attachments || []),
+        newDocument,
+      ];
+      await api.put(`/experiments/${id}`, {
+        attachments: updatedAttachments,
+      });
+
+      // Update local state
+      setExperiment((prev) => ({ ...prev, attachments: updatedAttachments }));
+
+      toast.success("PDF uploaded successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error uploading PDF");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (index) => {
+    if (!window.confirm("Are you sure you want to delete this attachment?")) {
+      return;
+    }
+
+    try {
+      const updatedAttachments = experiment.attachments.filter(
+        (_, i) => i !== index
+      );
+      await api.put(`/experiments/${id}`, {
+        attachments: updatedAttachments,
+      });
+
+      // Update local state
+      setExperiment((prev) => ({ ...prev, attachments: updatedAttachments }));
+      toast.success("Attachment deleted successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error deleting attachment");
+    }
+  };
+
+  const handleViewFile = async (fileKey, fileName) => {
+    try {
+      // Create a blob URL from the authenticated download endpoint
+      const response = await fetch(
+        `${API_URL}/file/download?key=${encodeURIComponent(fileKey)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `JWT ${api.getToken()}`,
+          },
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to download file");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Open the file in a new tab
+      const newWindow = window.open(blobUrl, "_blank");
+
+      // Clean up the blob URL after a delay
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error viewing file");
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -20,7 +132,7 @@ const View = () => {
     try {
       setLoading(true);
       setError(null);
-      const { ok, data } = await API.get(`/experiments/${id}`);
+      const { ok, data } = await api.get(`/experiments/${id}`);
       if (!ok)
         return setError("Failed to load experiment details. Please try again.");
       setExperiment(data);
@@ -237,33 +349,6 @@ const View = () => {
               </dd>
             </div>
 
-            {/* Attachments */}
-            {experiment.attachments && experiment.attachments.length > 0 && (
-              <div
-                className={`px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 ${
-                  experiment.collected_data ? "bg-white" : "bg-gray-50"
-                }`}
-              >
-                <dt className="text-sm font-medium text-gray-500">
-                  Attachments
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                  <ul className="list-disc list-inside space-y-1">
-                    {experiment.attachments.map((attachment, index) => (
-                      <li
-                        key={index}
-                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                      >
-                        {typeof attachment === "string"
-                          ? attachment
-                          : attachment.name || `Attachment ${index + 1}`}
-                      </li>
-                    ))}
-                  </ul>
-                </dd>
-              </div>
-            )}
-
             {/* Created At */}
             <div
               className={`px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 ${
@@ -309,6 +394,115 @@ const View = () => {
         </div>
       </div>
 
+      <div className="mt-4 bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="px-4 py-5 sm:px-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900">
+            Documents
+          </h3>
+        </div>
+        <div className="flex items-center justify-center w-full mb-4 p-2">
+          <label
+            className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer ${
+              uploading
+                ? "bg-gray-100 border-gray-400"
+                : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              if (uploading) return;
+
+              const droppedFiles = e.dataTransfer.files;
+              if (droppedFiles.length > 0)
+                handlePdfUpload({ target: { files: droppedFiles } });
+            }}
+          >
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+              {uploading ? (
+                <>
+                  <svg
+                    className="w-6 h-6 mb-2 text-gray-500 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <p className="text-xs text-gray-500">Uploading...</p>
+                </>
+              ) : (
+                <>
+                  <FaFile className="w-6 h-6 mb-2 text-gray-500" />
+                  <p className="text-xs font-medium text-gray-700">
+                    <span className="font-semibold">Click to upload PDF</span>{" "}
+                    or drag and drop
+                  </p>
+                </>
+              )}
+            </div>
+            <input
+              id="pdf-file"
+              type="file"
+              className="hidden"
+              multiple
+              accept="application/pdf"
+              onChange={handlePdfUpload}
+              disabled={uploading}
+            />
+          </label>
+        </div>
+
+        {experiment.attachments && experiment.attachments.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {experiment.attachments.map((doc, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-2 overflow-hidden">
+                  <FaFile className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700 truncate">
+                    {doc.name}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleViewFile(doc.url, doc.name)}
+                    className="text-xs text-green-600 hover:text-green-800 px-2 py-1 rounded hover:bg-green-50"
+                  >
+                    View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAttachment(index)}
+                    className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50"
+                  >
+                    <FaTrash className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Action Buttons */}
       <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 flex flex-col sm:flex-row gap-3 sm:justify-between">
         <button
@@ -318,7 +512,7 @@ const View = () => {
                 "Are you sure you want to delete this experiment? This action cannot be undone."
               )
             ) {
-              const { ok } = await API.delete(`/experiments/${id}`);
+              const { ok } = await api.delete(`/experiments/${id}`);
               if (!ok) return setError("Failed to delete experiment");
               navigate("/experiments");
             }
