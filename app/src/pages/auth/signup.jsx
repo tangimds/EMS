@@ -10,6 +10,7 @@ export default () => {
   const [values, setValues] = useState({ name: "", email: "", password: "" });
   const [seePassword, setSeePassword] = useState(false);
   const [btnLoading, setBtnLoading] = useState(false);
+  const [errors, setErrors] = useState([]);
 
   const { user, setUser } = store();
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export default () => {
       if (user) setUser(user);
       navigate("/");
     } catch (e) {
+      setErrors(e.errors);
+      console.log("✌️ ~ e.errors:", e.errors);
       toast.error(e.message);
     } finally {
       setBtnLoading(false);
@@ -76,6 +79,11 @@ export default () => {
                   className="w-full bg-transparent ring-1 ring-gray-400 ring-inset rounded-md py-2 lg:py-2.5 px-3 text-xs lg:text-sm focus:ring-inset focus:ring-gray-800 focus:outline-none transition-colors disabled:bg-gray-100"
                   placeholder="Enter your email address"
                 />
+                {errors.find((error) => error.path === "email") && (
+                  <p className="text-xs text-red-500">
+                    {errors.find((error) => error.path === "email").msg}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-y-2 w-full">
@@ -113,6 +121,11 @@ export default () => {
                   Password must be at least 6 characters long and contain at
                   least one letter
                 </p>
+                {errors.find((error) => error.path === "password") && (
+                  <p className="text-xs text-red-500">
+                    {errors.find((error) => error.path === "password").msg}
+                  </p>
+                )}
               </div>
 
               <button
