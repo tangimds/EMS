@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
-import ExperimentModal from "./components/ExperimentModal";
+import ExperimentModal from "../../components/NewExperimentModal";
 
 const List = () => {
   const [experiments, setExperiments] = useState([]);
@@ -310,18 +310,18 @@ const List = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     End Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {experiments.map((experiment) => (
                   <tr key={experiment._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <button
+                        className="text-sm font-medium text-gray-900 hover:text-secondary-600 hover:underline"
+                        onClick={() => handleViewDetails(experiment._id)}
+                      >
                         {experiment.title}
-                      </div>
+                      </button>
                       <div className="text-sm text-gray-500 truncate max-w-xs">
                         {experiment.description}
                       </div>
@@ -346,14 +346,6 @@ const List = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDate(experiment.end_date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleViewDetails(experiment._id)}
-                        className="text-secondary-600 hover:text-secondary-900 bg-secondary-50 hover:bg-secondary-100 px-3 py-1 rounded-md transition-colors duration-200"
-                      >
-                        View Details
-                      </button>
                     </td>
                   </tr>
                 ))}
